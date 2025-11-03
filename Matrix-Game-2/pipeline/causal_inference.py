@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Callable, Dict, List, Optional
 import numpy as np
 import torch
 import time
@@ -476,7 +476,8 @@ class CausalInferenceStreamingPipeline(torch.nn.Module):
         return_latents: bool = False,
         output_folder = None,
         name = None,
-        mode = 'universal'
+        mode = 'universal',
+        action_provider: Optional[Callable[[int], Optional[Dict[str, torch.Tensor]]]] = None,
     ) -> torch.Tensor:
         """
         Perform inference on the given noise and text prompts.
@@ -514,43 +515,7 @@ class CausalInferenceStreamingPipeline(torch.nn.Module):
         for j in range(len(vae_cache)):
             vae_cache[j] = None
         # Set up profiling if requested
-        self.kv_cache1=self.kv_cache_keyboard=self.kv_cache_mouse=self.crossattn_cache=None
-        # Step 1: Initialize KV cache to all zeros
-        if self.kv_cache1 is None:
-            self._initialize_kv_cache(
-                batch_size=batch_size,
-                dtype=noise.dtype,
-                device=noise.device
-            )
-            self._initialize_kv_cache_mouse_and_keyboard(
-                batch_size=batch_size,
-                dtype=noise.dtype,
-                device=noise.device
-            )
-            
-            self._initialize_crossattn_cache(
-                batch_size=batch_size,
-                dtype=noise.dtype,
-                device=noise.device
-            )
-        else:
-            # reset cross attn cache
-            for block_index in range(self.num_transformer_blocks):
-                self.crossattn_cache[block_index]["is_init"] = False
-            # reset kv cache
-            for block_index in range(len(self.kv_cache1)):
-                self.kv_cache1[block_index]["global_end_index"] = torch.tensor(
-                    [0], dtype=torch.long, device=noise.device)
-                self.kv_cache1[block_index]["local_end_index"] = torch.tensor(
-                    [0], dtype=torch.long, device=noise.device)
-                self.kv_cache_mouse[block_index]["global_end_index"] = torch.tensor(
-                    [0], dtype=torch.long, device=noise.device)
-                self.kv_cache_mouse[block_index]["local_end_index"] = torch.tensor(
-                    [0], dtype=torch.long, device=noise.device)
-                self.kv_cache_keyboard[block_index]["global_end_index"] = torch.tensor(
-                    [0], dtype=torch.long, device=noise.device)
-                self.kv_cache_keyboard[block_index]["local_end_index"] = torch.tensor(
-                    [0], dtype=torch.long, device=noise.device)
+        self._reset_generation_caches(batch_size=batch_size, dtype=noise.dtype, device=noise.device)
         # Step 2: Cache context feature
         current_start_frame = 0
         if initial_latent is not None:
@@ -583,8 +548,27 @@ class CausalInferenceStreamingPipeline(torch.nn.Module):
             noisy_input = noise[
                 :, :, current_start_frame - num_input_frames:current_start_frame + current_num_frames - num_input_frames]
 
-            current_actions = get_current_action(mode=mode)
-            new_act, conditional_dict = cond_current(conditional_dict, current_start_frame, self.num_frame_per_block, replace=current_actions, mode=mode)
+            replace_actions: Optional[Dict[str, torch.Tensor]] = None
+            if action_provider is not None:
+                replace_actions = action_provider(current_start_frame)
+            else:
+                replace_actions = get_current_action(mode=mode)
+
+            if replace_actions is not None:
+                new_act, conditional_dict = cond_current(
+                    conditional_dict,
+                    current_start_frame,
+                    self.num_frame_per_block,
+                    replace=replace_actions,
+                    mode=mode,
+                )
+            else:
+                new_act = cond_current(
+                    conditional_dict,
+                    current_start_frame,
+                    self.num_frame_per_block,
+                    mode=mode,
+                )
             # Step 3.1: Spatial denoising loop
 
             for index, current_timestep in enumerate(self.denoising_step_list):
@@ -687,6 +671,172 @@ class CausalInferenceStreamingPipeline(torch.nn.Module):
             return output
         else:
             return video
+
+    def generate_next_frames(
+        self,
+        noise: torch.Tensor,
+        conditional_dict,
+        num_frames: int,
+        initial_latent: Optional[torch.Tensor] = None,
+        mode: str = "universal",
+        action_provider: Optional[Callable[[int], Optional[Dict[str, torch.Tensor]]]] = None,
+    ) -> List[np.ndarray]:
+        """
+        Generate the next ``num_frames`` frames without writing any video files.
+        Returns the frames as a list of uint8 numpy arrays shaped (H, W, C).
+        """
+        if num_frames <= 0:
+            raise ValueError("num_frames must be positive.")
+
+        assert noise.shape[1] == 16
+        batch_size, _, noise_frames, _, _ = noise.shape
+
+        if batch_size != 1:
+            raise ValueError("generate_next_frames currently supports batch_size == 1.")
+
+        self._reset_generation_caches(batch_size=batch_size, dtype=noise.dtype, device=noise.device)
+
+        vae_cache = copy.deepcopy(ZERO_VAE_CACHE)
+        for j in range(len(vae_cache)):
+            vae_cache[j] = None
+
+        num_input_frames = initial_latent.shape[2] if initial_latent is not None else 0
+        current_start_frame = 0
+
+        if initial_latent is not None:
+            assert initial_latent.shape[0] == batch_size
+            assert num_input_frames % self.num_frame_per_block == 0
+            timestep_zero = torch.zeros([batch_size, 1], device=noise.device, dtype=torch.int64)
+            num_input_blocks = num_input_frames // self.num_frame_per_block
+
+            for _ in range(num_input_blocks):
+                current_ref_latents = initial_latent[:, :, current_start_frame:current_start_frame + self.num_frame_per_block]
+                self.generator(
+                    noisy_image_or_video=current_ref_latents,
+                    conditional_dict=cond_current(conditional_dict, current_start_frame, self.num_frame_per_block, mode=mode),
+                    timestep=timestep_zero,
+                    kv_cache=self.kv_cache1,
+                    kv_cache_mouse=self.kv_cache_mouse,
+                    kv_cache_keyboard=self.kv_cache_keyboard,
+                    crossattn_cache=self.crossattn_cache,
+                    current_start=current_start_frame * self.frame_seq_length,
+                )
+                current_start_frame += self.num_frame_per_block
+
+        assert noise_frames % self.num_frame_per_block == 0
+        num_blocks = noise_frames // self.num_frame_per_block
+        requested_frames: List[np.ndarray] = []
+
+        for _ in range(num_blocks):
+            current_num_frames = self.num_frame_per_block
+            noisy_input = noise[
+                :,
+                :,
+                current_start_frame - num_input_frames:current_start_frame + current_num_frames - num_input_frames,
+            ]
+
+            replace_actions: Optional[Dict[str, torch.Tensor]] = None
+            if action_provider is not None:
+                replace_actions = action_provider(current_start_frame)
+            else:
+                replace_actions = get_current_action(mode=mode)
+
+            if replace_actions is not None:
+                new_act, conditional_dict = cond_current(
+                    conditional_dict,
+                    current_start_frame,
+                    self.num_frame_per_block,
+                    replace=replace_actions,
+                    mode=mode,
+                )
+            else:
+                new_act = cond_current(
+                    conditional_dict,
+                    current_start_frame,
+                    self.num_frame_per_block,
+                    mode=mode,
+                )
+
+            for index, current_timestep in enumerate(self.denoising_step_list):
+                timestep = torch.ones(
+                    [batch_size, current_num_frames],
+                    device=noise.device,
+                    dtype=torch.int64,
+                ) * current_timestep
+
+                if index < len(self.denoising_step_list) - 1:
+                    _, denoised_pred = self.generator(
+                        noisy_image_or_video=noisy_input,
+                        conditional_dict=new_act,
+                        timestep=timestep,
+                        kv_cache=self.kv_cache1,
+                        kv_cache_mouse=self.kv_cache_mouse,
+                        kv_cache_keyboard=self.kv_cache_keyboard,
+                        crossattn_cache=self.crossattn_cache,
+                        current_start=current_start_frame * self.frame_seq_length,
+                    )
+                    next_timestep = self.denoising_step_list[index + 1]
+                    noisy_input = self.scheduler.add_noise(
+                        rearrange(denoised_pred, "b c f h w -> (b f) c h w"),
+                        torch.randn_like(rearrange(denoised_pred, "b c f h w -> (b f) c h w")),
+                        next_timestep * torch.ones(
+                            [batch_size * current_num_frames], device=noise.device, dtype=torch.long
+                        ),
+                    )
+                    noisy_input = rearrange(noisy_input, "(b f) c h w -> b c f h w", b=denoised_pred.shape[0])
+                else:
+                    _, denoised_pred = self.generator(
+                        noisy_image_or_video=noisy_input,
+                        conditional_dict=new_act,
+                        timestep=timestep,
+                        kv_cache=self.kv_cache1,
+                        kv_cache_mouse=self.kv_cache_mouse,
+                        kv_cache_keyboard=self.kv_cache_keyboard,
+                        crossattn_cache=self.crossattn_cache,
+                        current_start=current_start_frame * self.frame_seq_length,
+                    )
+
+            context_timestep = torch.ones_like(timestep) * self.args.context_noise
+            self.generator(
+                noisy_image_or_video=denoised_pred,
+                conditional_dict=new_act,
+                timestep=context_timestep,
+                kv_cache=self.kv_cache1,
+                kv_cache_mouse=self.kv_cache_mouse,
+                kv_cache_keyboard=self.kv_cache_keyboard,
+                crossattn_cache=self.crossattn_cache,
+                current_start=current_start_frame * self.frame_seq_length,
+            )
+
+            denoised_pred = denoised_pred.transpose(1, 2)
+            video_block, vae_cache = self.vae_decoder(denoised_pred.half(), *vae_cache)
+            block_np = rearrange(video_block, "B T C H W -> B T H W C")
+            block_np = ((block_np.float() + 1) * 127.5).clip(0, 255).cpu().numpy().astype(np.uint8)[0]
+            block_np = np.ascontiguousarray(block_np)
+
+            frames_needed = num_frames - len(requested_frames)
+            take = min(frames_needed, block_np.shape[0])
+            if take > 0:
+                requested_frames.extend(frame.copy() for frame in block_np[:take])
+
+            current_start_frame += current_num_frames
+
+            if len(requested_frames) >= num_frames:
+                break
+
+        if len(requested_frames) < num_frames:
+            raise RuntimeError(f"Requested {num_frames} frames but only generated {len(requested_frames)}.")
+
+        return requested_frames
+
+    def _reset_generation_caches(self, batch_size, dtype, device):
+        self.kv_cache1 = None
+        self.kv_cache_mouse = None
+        self.kv_cache_keyboard = None
+        self.crossattn_cache = None
+        self._initialize_kv_cache(batch_size=batch_size, dtype=dtype, device=device)
+        self._initialize_kv_cache_mouse_and_keyboard(batch_size=batch_size, dtype=dtype, device=device)
+        self._initialize_crossattn_cache(batch_size=batch_size, dtype=dtype, device=device)
 
     def _initialize_kv_cache(self, batch_size, dtype, device):
         """

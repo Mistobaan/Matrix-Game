@@ -5,3 +5,4 @@ templerun_distilled_model/
 gta_distilled_model/
 Wan2.1_VAE.pth
 models_clip_open-clip-xlm-roberta-large-vit-huge-14.pth
+outputs/

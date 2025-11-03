@@ -40,5 +40,5 @@ flask
 flask-socketio
 torchao
 
-torch>=2.8
+torch>=2.8,<2.9
 flash_attn==2.8.3

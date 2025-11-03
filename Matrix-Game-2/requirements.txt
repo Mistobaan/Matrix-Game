@@ -30,7 +30,7 @@ scikit-image
 huggingface_hub[cli]
 dominate
 nvidia-pyindex
-nvidia-tensorrt
+nvidia-cuda-runtime
 pycuda
 onnx
 onnxruntime
@@ -39,3 +39,6 @@ onnxconverter_common
 flask
 flask-socketio
 torchao
+
+torch>=2.8
+flash_attn==2.8.3

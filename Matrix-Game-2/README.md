@@ -24,21 +24,29 @@ We tested this repo on the following setup:
 ## Installation
 Create a conda environment and install dependencies:
 ```
+export PATH=/opt/miniconda/bin/:$PATH
+conda tos accept --override-channels --channel pkgs/main
+conda tos accept --override-channels --channel pkgs/r
 conda create -n matrix-game-2.0 python=3.10 -y
+conda init
 conda activate matrix-game-2.0
 # install apex and FlashAttention
+pip install numpy==2.2.6
+pip install torch==2.8.0 torchvision==0.23.0 torchaudio==2.8.0 --index-url https://download.pytorch.org/whl/cu128
+pip install flash_attn==2.8.3
+pip install torchao==0.13.0 # see https://github.com/pytorch/ao/issues/2919
+pip install diffusers==0.31.0
+
 # Our project also depends on [FlashAttention](https://github.com/Dao-AILab/flash-attention)
-git clone https://github.com/SkyworkAI/Matrix-Game.git
-cd Matrix-Game-2
 pip install -r requirements.txt
 python setup.py develop
-```
 
+huggingface-cli download Skywork/Matrix-Game-2.0 --local-dir .
 
-## Quick Start
-### Download checkpoints
-```
-huggingface-cli download Skywork/Matrix-Game-2.0 --local-dir Matrix-Game-2.0
+sudo usermod -aG docker ubuntu
+sudo systemctl restart docker
+groups ubuntu
+docker run hello-world
 ```
 
 ### Inference

@@ -3,6 +3,10 @@ import argparse
 import torch
 import numpy as np
 
+import torch
+
+assert torch.cuda.is_available()
+
 from omegaconf import OmegaConf
 from torchvision.transforms import v2
 from diffusers.utils import load_image
@@ -32,7 +36,7 @@ def parse_args():
 class InteractiveGameInference:
     def __init__(self, args):
         self.args = args
-        self.device = torch.device("cuda")
+        self.device = torch.device(0)
         self.weight_dtype = torch.bfloat16
 
         self._init_config()

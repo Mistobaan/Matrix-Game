@@ -1,0 +1,51 @@
+# torch>=2.4.0
+# torchvision>=0.19.0
+# opencv-python>=4.9.0.80
+# diffusers
+# transformers>=4.49.0
+# tokenizers>=0.20.3
+# accelerate>=1.1.1
+# tqdm
+# imageio
+# easydict
+# ftfy
+# dashscope
+# imageio-ffmpeg
+# numpy
+# wandb
+# -i https://download.pytorch.org/whl/cu128
+torch==2.8.0 
+torchvision==0.23.0
+torchaudio==2.8.0
+torchao==0.13.0
+diffusers==0.31.0
+omegaconf
+einops
+websockets
+# av
+# safetensors
+# opencv-python
+# git+https://github.com/openai/CLIP.git
+# open_clip_torch
+# starlette
+# pycocotools
+# lmdb
+# matplotlib
+# sentencepiece
+# pydantic
+# scikit-image
+# huggingface_hub[cli]
+# dominate
+# nvidia-pyindex
+# nvidia-cuda-runtime
+# pycuda
+# onnx
+# onnxruntime
+# onnxscript
+# onnxconverter_common
+# flask
+# flask-socketio
+# torchao
+
+# torch>=2.8,<2.9
+# flash_attn==2.8.3

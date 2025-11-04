@@ -1,10 +1,11 @@
 # Copyright 2024-2025 The Alibaba Wan Team Authors. All rights reserved.
 import html
 import string
+import os
 
 import ftfy
 import regex as re
-from transformers import AutoTokenizer
+import tokenizers
 
 __all__ = ['HuggingfaceTokenizer']
 
@@ -43,8 +44,8 @@ class HuggingfaceTokenizer:
         self.clean = clean
 
         # init tokenizer
-        self.tokenizer = AutoTokenizer.from_pretrained(name, **kwargs)
-        self.vocab_size = self.tokenizer.vocab_size
+        self.tokenizer = tokenizers.Tokenizer.from_file(os.path.join(name, "tokenizer.json"), **kwargs)
+        self.vocab_size = self.tokenizer.get_vocab_size()
 
     def __call__(self, sequence, **kwargs):
         return_mask = kwargs.pop('return_mask', False)

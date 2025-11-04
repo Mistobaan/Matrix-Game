@@ -25,7 +25,7 @@ from safetensors.torch import load_file
 from demo_utils.vae_block3 import VAEDecoderWrapper
 from utils.misc import set_seed
 from utils.visualize import process_video
-from utils.wan_wrapper import WanDiffusionWrapper
+from vae.model import WanDiffusionWrapper
 from wan.vae.wanx_vae import get_wanx_vae_wrapper
 
 try:
@@ -666,7 +666,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output_folder", type=str, default="outputs/", help="Output directory for rendered videos.")
     parser.add_argument("--max_num_output_frames", type=int, default=360, help="Max number of latent frames (matches original CLI).")
     parser.add_argument("--seed", type=int, default=0, help="Random seed.")
-    parser.add_argument("--pretrained_model_path", type=str, default="Matrix-Game-2.0", help="Directory containing Wan VAE weights.")
+    parser.add_argument("--pretrained_model_path", type=str, default=".", help="Directory containing Wan VAE weights.")
     parser.add_argument("--host", type=str, default="0.0.0.0", help="Websocket bind host.")
     parser.add_argument("--port", type=int, default=8765, help="Websocket bind port.")
     parser.add_argument("--log_level", type=str, default="INFO", help="Logging verbosity.")

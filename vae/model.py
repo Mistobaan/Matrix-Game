@@ -36,12 +36,12 @@ from diffusers.configuration_utils import ConfigMixin, register_to_config
 from diffusers.loaders import FromOriginalModelMixin, PeftAdapterMixin
 from diffusers.models.modeling_utils import ModelMixin
 from torch.nn.attention.flex_attention import BlockMask, create_block_mask, flex_attention
+
 from wan.modules.attention import attention
 from wan.modules.model import (
     WAN_CROSSATTENTION_CLASSES,
     MLPProj,
     WanLayerNorm,
-    WanRMSNorm,
     rope_apply,
     rope_params,
     sinusoidal_embedding_1d,
@@ -53,6 +53,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from einops import rearrange
+
+from .modules.normalization import RMSNorm
 
 __all__ = [
     'WanVAE',
@@ -118,8 +120,8 @@ class CausalWanSelfAttention(nn.Module):
         self.k = nn.Linear(dim, dim)
         self.v = nn.Linear(dim, dim)
         self.o = nn.Linear(dim, dim)
-        self.norm_q = WanRMSNorm(dim, eps=eps) if qk_norm else nn.Identity()
-        self.norm_k = WanRMSNorm(dim, eps=eps) if qk_norm else nn.Identity()
+        self.norm_q = RMSNorm(dim, eps=eps) if qk_norm else nn.Identity()
+        self.norm_k = RMSNorm(dim, eps=eps) if qk_norm else nn.Identity()
 
     def forward(
         self,

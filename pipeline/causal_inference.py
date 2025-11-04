@@ -4,7 +4,7 @@ import torch
 import copy
 
 from einops import rearrange
-from utils.wan_wrapper import WanDiffusionWrapper, WanVAEWrapper
+from vae.model import WanDiffusionWrapper, WanVAEWrapper
 from utils.visualize import process_video
 import torch.nn.functional as F
 from demo_utils.constant import ZERO_VAE_CACHE

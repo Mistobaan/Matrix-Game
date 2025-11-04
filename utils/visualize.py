@@ -1,5 +1,5 @@
 from operator import index
-import cv2
+# import cv2
 import numpy as np
 import os
 import subprocess
@@ -64,15 +64,15 @@ def draw_rounded_rectangle(image, top_left, bottom_right, color, radius=10, alph
     x1, y1 = top_left
     x2, y2 = bottom_right
 
-    cv2.rectangle(overlay, (x1 + radius, y1), (x2 - radius, y2), color, -1)
-    cv2.rectangle(overlay, (x1, y1 + radius), (x2, y2 - radius), color, -1)
+    # cv2.rectangle(overlay, (x1 + radius, y1), (x2 - radius, y2), color, -1)
+    # cv2.rectangle(overlay, (x1, y1 + radius), (x2, y2 - radius), color, -1)
 
-    cv2.ellipse(overlay, (x1 + radius, y1 + radius), (radius, radius), 180, 0, 90, color, -1)
-    cv2.ellipse(overlay, (x2 - radius, y1 + radius), (radius, radius), 270, 0, 90, color, -1)
-    cv2.ellipse(overlay, (x1 + radius, y2 - radius), (radius, radius), 90, 0, 90, color, -1)
-    cv2.ellipse(overlay, (x2 - radius, y2 - radius), (radius, radius), 0, 0, 90, color, -1)
+    # cv2.ellipse(overlay, (x1 + radius, y1 + radius), (radius, radius), 180, 0, 90, color, -1)
+    # cv2.ellipse(overlay, (x2 - radius, y1 + radius), (radius, radius), 270, 0, 90, color, -1)
+    # cv2.ellipse(overlay, (x1 + radius, y2 - radius), (radius, radius), 90, 0, 90, color, -1)
+    # cv2.ellipse(overlay, (x2 - radius, y2 - radius), (radius, radius), 0, 0, 90, color, -1)
 
-    cv2.addWeighted(overlay, alpha, image, 1 - alpha, 0, image)
+    # cv2.addWeighted(overlay, alpha, image, 1 - alpha, 0, image)
 
 # Render key highlights on the frame
 def draw_keys_on_frame(frame, keys, key_size=(80, 50), spacing=20, bottom_margin=30, mode='universal'):

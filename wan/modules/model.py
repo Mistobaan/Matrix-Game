@@ -1,8 +1,6 @@
 # Copyright 2024-2025 The Alibaba Wan Team Authors. All rights reserved.
 import math
-import numpy as np
 import torch
-import torch.amp as amp
 import torch.nn as nn
 from diffusers.configuration_utils import ConfigMixin, register_to_config
 from diffusers.loaders import FromOriginalModelMixin, PeftAdapterMixin
@@ -10,6 +8,8 @@ from diffusers.models.modeling_utils import ModelMixin
 from einops import repeat, rearrange
 from .action_module import ActionModule
 from .attention import flash_attention
+from vae.modules.normalization import RMSNorm
+
 DISABLE_COMPILE = False  # get os env
 __all__ = ['WanModel']
 
@@ -71,25 +71,6 @@ def rope_apply(x, grid_sizes, freqs):
     return torch.stack(output).type_as(x)
 
 
-class WanRMSNorm(nn.Module):
-
-    def __init__(self, dim, eps=1e-5):
-        super().__init__()
-        self.dim = dim
-        self.eps = eps
-        self.weight = nn.Parameter(torch.ones(dim))
-
-    def forward(self, x):
-        r"""
-        Args:
-            x(Tensor): Shape [B, L, C]
-        """
-        return self._norm(x.float()).type_as(x) * self.weight
-
-    def _norm(self, x):
-        return x * torch.rsqrt(x.pow(2).mean(dim=-1, keepdim=True) + self.eps)
-
-
 class WanLayerNorm(nn.LayerNorm):
 
     def __init__(self, dim, eps=1e-6, elementwise_affine=False):
@@ -125,8 +106,8 @@ class WanSelfAttention(nn.Module):
         self.k = nn.Linear(dim, dim)
         self.v = nn.Linear(dim, dim)
         self.o = nn.Linear(dim, dim)
-        self.norm_q = WanRMSNorm(dim, eps=eps) if qk_norm else nn.Identity()
-        self.norm_k = WanRMSNorm(dim, eps=eps) if qk_norm else nn.Identity()
+        self.norm_q = RMSNorm(dim, eps=eps) if qk_norm else nn.Identity()
+        self.norm_k = RMSNorm(dim, eps=eps) if qk_norm else nn.Identity()
 
     def forward(self, x, seq_lens, grid_sizes, freqs):
         r"""

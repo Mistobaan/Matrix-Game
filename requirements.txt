@@ -7,8 +7,9 @@
 # accelerate>=1.1.1
 # tqdm
 # imageio
-# easydict
-# ftfy
+easydict
+ftfy
+tokenizers
 # dashscope
 # imageio-ffmpeg
 # numpy

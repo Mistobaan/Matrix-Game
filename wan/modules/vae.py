@@ -16,7 +16,7 @@ CACHE_T = 2
 
 class CausalConv3d(nn.Conv3d):
     """
-    Causal 3d convolusion.
+    Causal 3d convolution.
     """
 
     def __init__(self, *args, **kwargs):
@@ -609,31 +609,7 @@ class WanVAE_(nn.Module):
         self._enc_feat_map = [None] * self._enc_conv_num
 
 
-def _video_vae(pretrained_path=None, z_dim=None, device='cpu', **kwargs):
-    """
-    Autoencoder3d adapted from Stable Diffusion 1.x, 2.x and XL.
-    """
-    # params
-    cfg = dict(
-        dim=96,
-        z_dim=z_dim,
-        dim_mult=[1, 2, 4, 4],
-        num_res_blocks=2,
-        attn_scales=[],
-        temperal_downsample=[False, True, True],
-        dropout=0.0)
-    cfg.update(**kwargs)
 
-    # init model
-    with torch.device('meta'):
-        model = WanVAE_(**cfg)
-
-    # load checkpoint
-    logging.info(f'loading {pretrained_path}')
-    model.load_state_dict(
-        torch.load(pretrained_path, map_location=device), assign=True)
-
-    return model
 
 
 class WanVAE:
@@ -668,14 +644,14 @@ class WanVAE:
         """
         videos: A list of videos each with shape [C, T, H, W].
         """
-        with amp.autocast(dtype=self.dtype):
+        with torch.amp.autocast(dtype=self.dtype):
             return [
                 self.model.encode(u.unsqueeze(0), self.scale).float().squeeze(0)
                 for u in videos
             ]
 
     def decode(self, zs):
-        with amp.autocast(dtype=self.dtype):
+        with torch.amp.autocast(dtype=self.dtype):
             return [
                 self.model.decode(u.unsqueeze(0),
                                   self.scale).float().clamp_(-1, 1).squeeze(0)

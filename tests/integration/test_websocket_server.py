@@ -39,6 +39,7 @@ if "diffusers" not in sys.modules:
     def _register_to_config(*_args, **_kwargs):
         def decorator(fn):
             return fn
+
         return decorator
 
     config_utils.ConfigMixin = _ConfigMixin
@@ -160,7 +161,9 @@ if "pipeline" not in sys.modules:
 
     class _StubPipeline:
         def __init__(self, *args, **kwargs):
-            self.generator = types.SimpleNamespace(load_state_dict=lambda *_a, **_k: None)
+            self.generator = types.SimpleNamespace(
+                load_state_dict=lambda *_a, **_k: None
+            )
 
         def to(self, *args, **kwargs):
             return self
@@ -371,14 +374,21 @@ async def test_websocket_integration_round_trip(tmp_path):
 
             await ws.send(
                 json.dumps(
-                    {"type": "setup", "image_path": "demo.png", "mode": "test", "session_id": "case1"}
+                    {
+                        "type": "setup",
+                        "image_path": "demo.png",
+                        "mode": "test",
+                        "session_id": "case1",
+                    }
                 )
             )
             started = json.loads(await ws.recv())
             assert started["type"] == "session_started"
             assert started["session_id"] == "case1"
 
-            await ws.send(json.dumps({"type": "action", "keyboard": {"state": ["forward"]}}))
+            await ws.send(
+                json.dumps({"type": "action", "keyboard": {"state": ["forward"]}})
+            )
             ack = json.loads(await ws.recv())
             assert ack["type"] == "action_ack"
             assert ack["frames_recorded"] == 1

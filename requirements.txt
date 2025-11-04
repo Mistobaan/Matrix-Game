@@ -23,6 +23,8 @@ diffusers==0.31.0
 omegaconf
 einops
 websockets
+fastapi
+uvicorn
 # av
 # safetensors
 # opencv-python

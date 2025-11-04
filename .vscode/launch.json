@@ -8,8 +8,24 @@
             "name": "backend",
             "type": "debugpy",
             "request": "launch",
-            "program": "${workspaceFolder}/websocket_inference_server.py",
-            "console": "integratedTerminal"
+            "module": "uvicorn",
+            "args": [
+                "websocket_inference_server:app",
+                "--host",
+                "0.0.0.0",
+                "--port",
+                "8765",
+                "--reload",
+                "--log-level",
+                "debug"
+            ],
+            "console": "integratedTerminal",
+            "env": {
+                "TORCH_LOGS": "+dynamo,+inductor",
+                "TORCHINDUCTOR_UNIQUE_KERNEL_NAMES": "1",
+                "TORCHINDUCTOR_BENCHMARK_KERNEL": "1",
+                "PYTHONASYNCIODEBUG": "1"
+            }
         },
     ]
 }

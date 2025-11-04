@@ -1,6 +1,13 @@
+"""Normalization utilities mirrored from the Wan diffusion stack.
+
+The Wan VAE keeps a slimmed-down copy of RMSNorm / LayerNorm variants so it can
+decode latents without importing the full diffusion model implementation.
+"""
+
+from __future__ import annotations
+
 import torch
-from torch import nn
-from torch import Tensor
+from torch import Tensor, nn
 
 
 class RMSNorm(nn.Module):
@@ -40,3 +47,30 @@ class RMSNorm(nn.Module):
     def _norm(self, x: Tensor) -> Tensor:
         """Normalize by the root-mean-square value across the last dimension."""
         return x * torch.rsqrt(x.pow(2).mean(dim=-1, keepdim=True) + self.eps)
+
+
+class WanLayerNorm(nn.LayerNorm):
+    """LayerNorm variant matching Wan defaults (float32 output, optional affine)."""
+
+    def __init__(
+        self, dim: int, eps: float = 1e-6, elementwise_affine: bool = False
+    ) -> None:
+        """Store LayerNorm hyper-parameters.
+
+        Args:
+            dim: Channel dimension of the input `[B, L, C]` tensor.
+            eps: Small constant added to the variance for numerical stability.
+            elementwise_affine: Whether to learn scale and bias parameters.
+        """
+        super().__init__(dim, elementwise_affine=elementwise_affine, eps=eps)
+
+    def forward(self, x: Tensor) -> Tensor:
+        """Apply standard LayerNorm while preserving the input dtype.
+
+        Args:
+            x: Input tensor of shape `[B, L, C]`.
+
+        Returns:
+            Tensor: Layer-normalized representation with the same dtype/device.
+        """
+        return super().forward(x).type_as(x)

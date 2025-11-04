@@ -31,3 +31,6 @@ Matrix-Game is Skywork AI's interactive world foundation model family. Version 2
 - Root-level `README.md`: release notes and project overview.
 - `Matrix-Game-2/README.md`: detailed setup, quick-start commands, and citation.
 - Wan documentation inside `Matrix-Game-2/wan/README.md`: model internals, distributed helpers, and training hints.
+
+## Coding Guidelines
+- Whenever updating or adding a Python function, make sure to include a docstring with `Args`, `Returns`, and `Raises` (when relevant) so downstream tools get structured documentation.

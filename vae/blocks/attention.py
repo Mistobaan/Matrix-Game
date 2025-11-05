@@ -6,23 +6,25 @@ under `vae/` so the VAE stack can reuse Wan attention primitives without
 depending on the full diffusion model graph.
 """
 
-from __future__ import annotations
-
 import math
 from typing import Dict, Optional
 
-import torch
-from torch import Tensor, nn
 
-from wan.modules.action_module import ActionModule
-from wan.modules.causal_model import CausalWanSelfAttention
-from wan.modules.model import WAN_CROSSATTENTION_CLASSES, WanLayerNorm
+import torch
+from torch import nn, Tensor
+
+
+from .action import ActionModule
+from ..layers.attention import CausalWanSelfAttention, WanI2VCrossAttention
+from ..layers.normalization import WanLayerNorm, RMS_norm
 
 
 class CausalWanAttentionBlock(nn.Module):
     """Single Wan attention block with causal masking and action conditioning.
 
-    The block processes latent tokens produced by the Wan VAE. It applies:
+    The block processes latent tokens produced by the Wan VAE.
+
+    It applies:
       1. LayerNorm + causal self-attention with rotary embeddings.
       2. Cross-attention against encoder / condition context.
       3. Optional mouse / keyboard action injection.
@@ -34,7 +36,6 @@ class CausalWanAttentionBlock(nn.Module):
 
     def __init__(
         self,
-        cross_attn_type: str,
         dim: int,
         ffn_dim: int,
         num_heads: int,
@@ -88,9 +89,8 @@ class CausalWanAttentionBlock(nn.Module):
             if cross_attn_norm
             else nn.Identity()
         )
-        self.cross_attn = WAN_CROSSATTENTION_CLASSES[cross_attn_type](
-            dim, num_heads, (-1, -1), qk_norm, eps
-        )
+
+        self.cross_attn = WanI2VCrossAttention(dim, num_heads, (-1, -1), qk_norm, eps)
 
         # Feed-forward sub-layer.
         self.norm2 = WanLayerNorm(dim, eps)
@@ -251,3 +251,48 @@ class CausalWanAttentionBlock(nn.Module):
             num_frame_per_block=num_frame_per_block,
         )
         return x
+
+
+class AttentionBlock(nn.Module):
+    """
+    Causal self-attention with a single head.
+    """
+
+    def __init__(self, dim):
+        super().__init__()
+        self.dim = dim
+
+        # layers
+        self.norm = RMS_norm(dim)
+        self.to_qkv = nn.Conv2d(dim, dim * 3, 1)
+        self.proj = nn.Conv2d(dim, dim, 1)
+
+        # zero out the last layer params
+        nn.init.zeros_(self.proj.weight)
+
+    def forward(self, x):
+        identity = x
+        b, c, t, h, w = x.size()
+        x = rearrange(x, "b c t h w -> (b t) c h w")
+        x = self.norm(x)
+        # compute query, key, value
+        q, k, v = (
+            self.to_qkv(x)
+            .reshape(b * t, 1, c * 3, -1)
+            .permute(0, 1, 3, 2)
+            .contiguous()
+            .chunk(3, dim=-1)
+        )
+
+        # apply attention
+        x = F.scaled_dot_product_attention(
+            q,
+            k,
+            v,
+        )
+        x = x.squeeze(1).permute(0, 2, 1).reshape(b * t, c, h, w)
+
+        # output
+        x = self.proj(x)
+        x = rearrange(x, "(b t) c h w-> b c t h w", t=t)
+        return x + identity

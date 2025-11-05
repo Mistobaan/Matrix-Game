@@ -25,6 +25,7 @@ einops
 websockets
 fastapi
 uvicorn
+torch-tensorrt==2.8.0
 # av
 # safetensors
 # opencv-python

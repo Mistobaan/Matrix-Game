@@ -16,8 +16,8 @@ from flash_attn import flash_attn_func
 from torch import Tensor
 from torch.nn.attention.flex_attention import flex_attention
 
-from .modules.normalization import RMSNorm
-from .modules.positional_embeddings import apply_rotary_emb, get_nd_rotary_pos_embed
+from vae.layers.normalization import RMSNorm
+from vae.layers.positional_embeddings import apply_rotary_emb, get_nd_rotary_pos_embed
 
 try:
     import flash_attn_interface
@@ -58,7 +58,6 @@ class ActionModule(nn.Module):
         local_attn_size=6,
         blocks=[],
     ):
-        device = None
         """Configure projection sizes and optional input streams.
 
         Args:

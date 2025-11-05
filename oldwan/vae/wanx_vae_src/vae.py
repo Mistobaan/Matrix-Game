@@ -218,51 +218,6 @@ class Resample(nn.Module):
         nn.init.zeros_(conv.bias.data)
 
 
-class ResidualBlock(nn.Module):
-    def __init__(self, in_dim, out_dim, dropout=0.0):
-        super().__init__()
-        self.in_dim = in_dim
-        self.out_dim = out_dim
-
-        # layers
-        self.residual = nn.Sequential(
-            RMS_norm(in_dim, images=False),
-            nn.SiLU(),
-            CausalConv3d(in_dim, out_dim, 3, padding=1),
-            RMS_norm(out_dim, images=False),
-            nn.SiLU(),
-            nn.Dropout(dropout),
-            CausalConv3d(out_dim, out_dim, 3, padding=1),
-        )
-        self.shortcut = (
-            CausalConv3d(in_dim, out_dim, 1) if in_dim != out_dim else nn.Identity()
-        )
-
-    def forward(self, x, feat_cache=None, feat_idx=[0]):
-        h = self.shortcut(x)
-        for layer in self.residual:
-            if check_is_instance(layer, CausalConv3d) and feat_cache is not None:
-                idx = feat_idx[0]
-                cache_x = x[:, :, -CACHE_T:, :, :].clone()
-                if cache_x.shape[2] < 2 and feat_cache[idx] is not None:
-                    # cache last frame of last two chunk
-                    cache_x = torch.cat(
-                        [
-                            feat_cache[idx][:, :, -1, :, :]
-                            .unsqueeze(2)
-                            .to(cache_x.device),
-                            cache_x,
-                        ],
-                        dim=2,
-                    )
-                x = layer(x, feat_cache[idx])
-                feat_cache[idx] = cache_x
-                feat_idx[0] += 1
-            else:
-                x = layer(x)
-        return x + h
-
-
 class AttentionBlock(nn.Module):
     """
     Causal self-attention with a single head.
@@ -317,7 +272,7 @@ class Encoder3d(nn.Module):
         dim_mult=[1, 2, 4, 4],
         num_res_blocks=2,
         attn_scales=[],
-        temperal_downsample=[True, True, False],
+        temporal_downsample=[True, True, False],
         dropout=0.0,
     ):
         super().__init__()
@@ -326,7 +281,7 @@ class Encoder3d(nn.Module):
         self.dim_mult = dim_mult
         self.num_res_blocks = num_res_blocks
         self.attn_scales = attn_scales
-        self.temperal_downsample = temperal_downsample
+        self.temporal_downsample = temporal_downsample
 
         # dimensions
         dims = [dim * u for u in [1] + dim_mult]
@@ -347,7 +302,7 @@ class Encoder3d(nn.Module):
 
             # downsample block
             if i != len(dim_mult) - 1:
-                mode = "downsample3d" if temperal_downsample[i] else "downsample2d"
+                mode = "downsample3d" if temporal_downsample[i] else "downsample2d"
                 downsamples.append(Resample(out_dim, mode=mode))
                 scale /= 2.0
         self.downsamples = nn.Sequential(*downsamples)
@@ -556,7 +511,7 @@ class VideoVAE_(nn.Module):
         dim_mult=[1, 2, 4, 4],
         num_res_blocks=2,
         attn_scales=[],
-        temperal_downsample=[False, True, True],
+        temporal_downsample=[False, True, True],
         dropout=0.0,
     ):
         super().__init__()
@@ -565,8 +520,8 @@ class VideoVAE_(nn.Module):
         self.dim_mult = dim_mult
         self.num_res_blocks = num_res_blocks
         self.attn_scales = attn_scales
-        self.temperal_downsample = temperal_downsample
-        self.temperal_upsample = temperal_downsample[::-1]
+        self.temporal_downsample = temporal_downsample
+        self.temperal_upsample = temporal_downsample[::-1]
 
         # modules
         self.encoder = Encoder3d(
@@ -575,7 +530,7 @@ class VideoVAE_(nn.Module):
             dim_mult,
             num_res_blocks,
             attn_scales,
-            self.temperal_downsample,
+            self.temporal_downsample,
             dropout,
         )
         self.conv1 = CausalConv3d(z_dim * 2, z_dim * 2, 1)

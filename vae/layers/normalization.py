@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import torch
 from torch import Tensor, nn
+from torch import functional as F
 
 
 class RMSNorm(nn.Module):
@@ -74,3 +75,23 @@ class WanLayerNorm(nn.LayerNorm):
             Tensor: Layer-normalized representation with the same dtype/device.
         """
         return super().forward(x).type_as(x)
+
+
+class RMS_norm(nn.Module):
+    def __init__(self, dim, channel_first=True, images=True, bias=False):
+        super().__init__()
+        broadcastable_dims = (1, 1, 1) if not images else (1, 1)
+        shape = (dim, *broadcastable_dims) if channel_first else (dim,)
+
+        self.channel_first = channel_first
+        self.scale = dim**0.5
+        self.gamma = nn.Parameter(torch.ones(shape))
+        self.bias = nn.Parameter(torch.zeros(shape)) if bias else 0.0
+
+    def forward(self, x):
+        return (
+            F.normalize(x, dim=(1 if self.channel_first else -1))
+            * self.scale
+            * self.gamma
+            + self.bias
+        )

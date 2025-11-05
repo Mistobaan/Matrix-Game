@@ -299,7 +299,7 @@ class Encoder3d(nn.Module):
         dim_mult=[1, 2, 4, 4],
         num_res_blocks=2,
         attn_scales=[],
-        temperal_downsample=[True, True, False],
+        temporal_downsample=[True, True, False],
         dropout=0.0,
     ):
         super().__init__()
@@ -308,7 +308,7 @@ class Encoder3d(nn.Module):
         self.dim_mult = dim_mult
         self.num_res_blocks = num_res_blocks
         self.attn_scales = attn_scales
-        self.temperal_downsample = temperal_downsample
+        self.temporal_downsample = temporal_downsample
 
         # dimensions
         dims = [dim * u for u in [1] + dim_mult]
@@ -329,7 +329,7 @@ class Encoder3d(nn.Module):
 
             # downsample block
             if i != len(dim_mult) - 1:
-                mode = "downsample3d" if temperal_downsample[i] else "downsample2d"
+                mode = "downsample3d" if temporal_downsample[i] else "downsample2d"
                 downsamples.append(Resample(out_dim, mode=mode))
                 scale /= 2.0
         self.downsamples = nn.Sequential(*downsamples)
@@ -538,7 +538,7 @@ class WanVAE_(nn.Module):
         dim_mult=[1, 2, 4, 4],
         num_res_blocks=2,
         attn_scales=[],
-        temperal_downsample=[True, True, False],
+        temporal_downsample=[True, True, False],
         dropout=0.0,
     ):
         super().__init__()
@@ -547,8 +547,8 @@ class WanVAE_(nn.Module):
         self.dim_mult = dim_mult
         self.num_res_blocks = num_res_blocks
         self.attn_scales = attn_scales
-        self.temperal_downsample = temperal_downsample
-        self.temperal_upsample = temperal_downsample[::-1]
+        self.temporal_downsample = temporal_downsample
+        self.temperal_upsample = temporal_downsample[::-1]
 
         # modules
         self.encoder = Encoder3d(
@@ -557,7 +557,7 @@ class WanVAE_(nn.Module):
             dim_mult,
             num_res_blocks,
             attn_scales,
-            self.temperal_downsample,
+            self.temporal_downsample,
             dropout,
         )
         self.conv1 = CausalConv3d(z_dim * 2, z_dim * 2, 1)

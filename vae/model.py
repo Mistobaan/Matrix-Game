@@ -1135,7 +1135,7 @@ class WanVAEWrapper(torch.nn.Module):  # todo
 
         # init model
         self.model = self._load_video_vae(
-            pretrained_path="skyreels_models/Wan2.1-T2V-1.3B/Wan2.1_VAE.pth",
+            pretrained_path=pretrained_path,
             z_dim=16,
         )
         self.model.eval()

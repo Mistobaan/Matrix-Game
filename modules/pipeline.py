@@ -1,7 +1,9 @@
 import abc
 import os
 
-from modules import clip, vae
+from modules import clip
+
+import vae
 
 
 class VAEWrapper(abc.ABC):

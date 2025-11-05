@@ -39,39 +39,10 @@
 #     rope_params,
 #     sinuisoidal_embedding_1d,
 # )
-import math
-import types
-from typing import List, Optional, Tuple
 
 import torch
-import torch.nn.functional as F
-from diffusers.configuration_utils import ConfigMixin, register_to_config
-from diffusers.loaders import FromOriginalModelMixin, PeftAdapterMixin
-from diffusers.models.modeling_utils import ModelMixin
-from einops import rearrange
 from torch import nn
-from torch.nn.attention.flex_attention import (
-    BlockMask,
-    create_block_mask,
-)
 
-from utils.scheduler import FlowMatchScheduler, SchedulerInterface
-
-from .blocks.attention import CausalWanAttentionBlock
-from .blocks.decoder import TemporalDecoder
-from .blocks.encoder import TemporalEncoder
-from .blocks.head import CausalHead
-from .layers.positional_embeddings import rope_params, sinusoidal_embedding_1d
-
-
-from typing import List
-
-import tensorrt as trt
-import torch
-import torch.nn as nn
-from einops import rearrange
-
-from demo_utils.constant import ALL_INPUTS_NAMES, ZERO_VAE_CACHE
 
 __all__ = [
     "WanVAE",

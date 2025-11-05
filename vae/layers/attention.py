@@ -1,17 +1,15 @@
 from __future__ import annotations
 
 import math
-from typing import Dict, Optional
 
 import torch
-from torch import Tensor, nn
+from torch import nn
 
 from .normalization import RMSNorm
 from .positional_embeddings import rope_apply, causal_rope_apply
 
 from torch.nn.attention.flex_attention import flex_attention
 
-import torch
 
 try:
     import flash_attn_interface

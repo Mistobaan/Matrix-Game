@@ -1,15 +1,11 @@
-from wan.modules.attention import attention
 from wan.modules.model import (
-    WanRMSNorm,
-    rope_apply,
     WanLayerNorm,
-    WAN_CROSSATTENTION_CLASSES,
     rope_params,
     MLPProj,
     sinusoidal_embedding_1d,
 )
 from diffusers.loaders import FromOriginalModelMixin, PeftAdapterMixin
-from torch.nn.attention.flex_attention import create_block_mask, flex_attention
+from torch.nn.attention.flex_attention import create_block_mask
 from diffusers.configuration_utils import ConfigMixin, register_to_config
 from torch.nn.attention.flex_attention import BlockMask
 from diffusers.models.modeling_utils import ModelMixin

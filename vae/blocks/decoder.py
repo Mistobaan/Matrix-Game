@@ -9,7 +9,7 @@ from .attention import AttentionBlock
 from .transforms import Resample
 from ..layers.normalization import RMS_norm
 
-from .cache import FeatureCache
+from ..cache import FeatureCache
 
 
 CACHE_T = 2

@@ -8,7 +8,7 @@ from ..layers.normalization import RMS_norm
 
 from .transforms import Resample
 from .residual import ResidualBlock
-from .cache import FeatureCache
+from ..cache import FeatureCache
 from .attention import AttentionBlock
 
 
